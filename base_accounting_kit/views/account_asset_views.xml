@@ -16,7 +16,7 @@
                             <label for="name" string="Asset Type" class="oe_edit_only" attrs="{'invisible': [('type','!=','purchase')]}"/>
                             <label for="name" string="Deferred Revenue Type" class="oe_edit_only" attrs="{'invisible': [('type','==','purchase')]}"/>
                             <h1>
-                                <field name="name" placeholder="e.g. Computers"/>
+                                <field name="name" placeholder="e.g. Computers" />
                             </h1>
                         </div>
                         <group>
@@ -150,9 +150,11 @@
                     </div>
                     <group>
                         <group>
+                            <field name="lot_id"/>
                             <field name="category_id" domain="[('type', '=', 'purchase')]" context="{'default_type': 'purchase'}" help="Category of asset"/>
                             <field name="code"/>
                             <field name="date" help="Date of asset"/>
+                            <field name="asset_type"/>
                             <field name="type" invisible="1"/>
                         </group>
                         <group>
@@ -263,6 +265,7 @@
         <field name="arch" type="xml">
             <tree string="Assets" decoration-info="(state == 'draft')" decoration-muted="(state == 'close')">
                 <field name="name"/>
+                <field name="lot_id"/>
                 <field name="category_id"/>
                 <field name="date"/>
                 <field name="partner_id" string="Vendor"/>
@@ -281,6 +284,7 @@
         <field name="arch" type="xml">
             <search string="Asset Account">
                 <field name="name" string="Asset"/>
+                 <field name="lot_id" string="N. Lote"/>
                 <field name="date"/>
                 <filter name="state" string="Current" domain="[('state','in', ('draft','open'))]" help="Assets in draft and open states"/>
                 <filter name="state" string="Closed" domain="[('state','=', 'close')]" help="Assets in closed state"/>

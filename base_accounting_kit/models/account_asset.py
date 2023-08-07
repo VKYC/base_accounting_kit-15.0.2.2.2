@@ -115,8 +115,14 @@ class AccountAssetAsset(models.Model):
 
     entry_count = fields.Integer(compute='_entry_count',
                                  string='# Asset Entries')
-    name = fields.Char(string='Asset Name', required=True, readonly=True,
-                       states={'draft': [('readonly', False)]})
+   
+    name =  fields.Many2one('product.product', string='Asset Name',
+                                  required=True,
+                                  states={'draft': [('readonly', False)]},
+                                  domain = [('is_asset', '=', True)]
+                                )
+    lot_id = fields.Many2one('stock.production.lot',string='N. Serie')
+
     code = fields.Char(string='Reference', size=32, readonly=True,
                        states={'draft': [('readonly', False)]})
     value = fields.Float(string='Gross Value', required=True, readonly=True,
@@ -195,6 +201,10 @@ class AccountAssetAsset(models.Model):
     type = fields.Selection(related="category_id.type", string='Type',
                             required=True)
 
+    asset_type = fields.Selection(
+        [('pasive', 'Pasivo'), ('prod', 'Producción'), ('other', 'Otros')],
+        'Tipo de Activo', copy=False, default='pasive')
+        
     def unlink(self):
         for asset in self:
             if asset.state in ['open', 'close']:
@@ -249,6 +259,12 @@ class AccountAssetAsset(models.Model):
                                                         group_entries=True)
         return created_move_ids
 
+    @api.onchange('name')
+    def _onchange_product_id(self):
+        if self.name:
+            self.lot_id = False
+            return {'domain': {'lot_id': [('product_id', '=', self.name.id)]}}
+    
     def _compute_board_amount(self, sequence, residual_amount, amount_to_depr,
                               undone_dotation_number,
                               posted_depreciation_line_ids, total_days,
@@ -411,31 +427,41 @@ class AccountAssetAsset(models.Model):
         return True
 
     def validate(self):
-        self.write({'state': 'open'})
-        fields = [
-            'method',
-            'method_number',
-            'method_period',
-            'method_end',
-            'method_progress_factor',
-            'method_time',
-            'salvage_value',
-            'invoice_id',
-        ]
-        ref_tracked_fields = self.env['account.asset.asset'].fields_get(fields)
-        for asset in self:
-            tracked_fields = ref_tracked_fields.copy()
-            if asset.method == 'linear':
-                del (tracked_fields['method_progress_factor'])
-            if asset.method_time != 'end':
-                del (tracked_fields['method_end'])
-            else:
-                del (tracked_fields['method_number'])
-            dummy, tracking_value_ids = asset._mail_track(tracked_fields,
-                                                             dict.fromkeys(
-                                                                 fields))
-            asset.message_post(subject=_('Asset created'),
-                               tracking_value_ids=tracking_value_ids)
+        existing_asset = self.env['account.asset.asset'].search([
+                ('name', '=', self.name.id),
+                ('lot_id', '=', self.lot_id.id),
+                ('state', '=', 'open')
+            ], limit=1)
+        if not existing_asset :
+            self.write({'state': 'open'})
+            fields = [
+                'method',
+                'method_number',
+                'method_period',
+                'method_end',
+                'method_progress_factor',
+                'method_time',
+                'salvage_value',
+                'invoice_id',
+            ]
+            ref_tracked_fields = self.env['account.asset.asset'].fields_get(fields)
+            for asset in self:
+                tracked_fields = ref_tracked_fields.copy()
+                if asset.method == 'linear':
+                    del (tracked_fields['method_progress_factor'])
+                if asset.method_time != 'end':
+                    del (tracked_fields['method_end'])
+                else:
+                    del (tracked_fields['method_number'])
+                dummy, tracking_value_ids = asset._mail_track(tracked_fields,
+                                                                dict.fromkeys(
+                                                                    fields))
+                asset.message_post(subject=_('Asset created'),
+                                tracking_value_ids=tracking_value_ids)
+        else:
+            raise ValidationError(_(
+                'Ya existe una depreciacion en curso para este producto y numero de lote".'))
+
 
     def _get_disposal_moves(self):
         move_ids = []
@@ -651,7 +677,7 @@ class AccountAssetDepreciationLine(models.Model):
             current_currency = line.asset_id.currency_id
             amount = current_currency.with_context(
                 date=depreciation_date).compute(line.amount, company_currency)
-            asset_name = line.asset_id.name + ' (%s/%s)' % (
+            asset_name = line.asset_id.name.name + ' (%s/%s)' % (
             line.sequence, len(line.asset_id.depreciation_line_ids))
             partner = self.env['res.partner']._find_accounting_partner(
                 line.asset_id.partner_id)

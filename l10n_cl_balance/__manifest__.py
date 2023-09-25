@@ -5,7 +5,7 @@
     'name': 'Chilean 8 Column Balance',
     'version': '15.0.1.0.0',
     'category': 'Invoicing Management',
-    'summary': 'Chilean 8 Column Balance For Odoo 12',
+    'summary': 'Chilean 8 Column Balance For Odoo 15',
     'sequence': '10',
     'author': 'Konos',
     'company': 'Konos',

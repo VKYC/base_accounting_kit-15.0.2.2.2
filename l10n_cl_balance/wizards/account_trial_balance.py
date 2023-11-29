@@ -107,7 +107,7 @@ class AccountBalanceReport(models.TransientModel):
             wheres.append(where_clause.strip())
         filters = " AND ".join(wheres)
         # compute the balance, debit and credit for the provided accounts
-        request = ("SELECT account_id AS id" +\
+        request = ("SELECT id" +\
                    " FROM " + tables + " WHERE account_id IN %s " + filters )
         params = (tuple(accounts.ids),) + tuple(where_params)
         self.env.cr.execute(request, params)
